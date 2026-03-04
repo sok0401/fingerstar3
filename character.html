@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>角色介紹</title>
+    <style>
+        body { 
+            margin: 0; 
+            background: radial-gradient(ellipse at bottom, #1B2735 0%, #050510 100%); 
+            color: white; 
+            font-family: 'PingFang TC', 'serif'; 
+            overflow: hidden; 
+            height: 100vh;
+            display: flex;
+            align-items: center;
+        }
+
+        /* 背景粒子 */
+        .stars-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; }
+        .star { position: absolute; background: white; border-radius: 50%; opacity: 0; animation: flowing-right var(--duration) linear infinite; }
+        @keyframes flowing-right { 0% { transform: translateX(0); opacity: 0; } 10% { opacity: 0.5; } 100% { transform: translateX(110vw); opacity: 0; } }
+
+        .char-wrapper {
+            width: 100vw;
+            overflow: hidden; 
+            white-space: nowrap;
+            padding: 0 5vw;
+            display: flex;
+            align-items: center;
+        }
+
+        /* 燈箱樣式 */
+        .char-card {
+            display: inline-block;
+            flex: 0 0 auto;
+            width: 280px; 
+            height: 590px;
+            margin: 0 -30px; 
+            position: relative;
+            background: #151525;
+            transform: skewX(-15deg); 
+            overflow: hidden;
+            border: 1px solid rgba(162, 155, 254, 0.3);
+            transition: width 0.8s cubic-bezier(0.19, 1, 0.22, 1), transform 0.4s, border-color 0.4s;
+            cursor: pointer;
+            z-index: 1;
+        }
+
+        .char-card.active {
+            width: 850px; 
+            z-index: 100;
+            border-color: #fffde7;
+            box-shadow: 0 0 50px rgba(162, 155, 254, 0.3);
+            transform: skewX(-15deg) scale(1.02);
+        }
+
+        .skew-fix {
+            width: 100%; height: 100%;
+            transform: skewX(15deg); 
+            display: flex; 
+            position: relative;
+        }
+
+        .img-box {
+            width: 450px; 
+            height: 100%;
+            flex-shrink: 0;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .char-img { 
+            width: 100%; height: 100%; 
+            object-fit: cover; 
+            opacity: 0.5; 
+            transition: 0.5s; 
+            transform: scale(1.0); 
+        }
+        .char-card:hover .char-img, .char-card.active .char-img { opacity: 0.9; }
+
+        /* --- 補回：滑鼠移入時顯示名稱的樣式 --- */
+        .char-name-box {
+            position: absolute; 
+            left: 10%; 
+            bottom: 12%; 
+            width: 0; 
+            height: 80px;
+            overflow: hidden; 
+            transition: width 0.7s cubic-bezier(0.19, 1, 0.22, 1);
+            display: flex; 
+            align-items: center; 
+            white-space: nowrap;
+            pointer-events: none;
+            z-index: 20;
+        }
+
+        /* 僅在非 active 狀態下觸發 hover 顯示名字 */
+        .char-card:not(.active):hover .char-name-box { 
+            width: 250px; 
+        }
+
+        /* 展開狀態下隱藏懸停名字，避免重疊 */
+        .char-card.active .char-name-box {
+            display: none;
+        }
+
+        .hover-name {
+            font-size: 2.5rem;
+            font-weight: 100;
+            letter-spacing: 12px;
+            color: #fff;
+            text-shadow: 0 0 15px rgba(162, 155, 254, 0.8), 2px 2px 4px rgba(0,0,0,0.9);
+        }
+
+        /* 展開資訊區 */
+        .char-info {
+            width: 530px; 
+            height: 100%;
+            padding: 30px 40px;
+            box-sizing: border-box;
+            white-space: normal; 
+            opacity: 0;
+            transform: translateX(-30px);
+            transition: opacity 0.5s 0.3s, transform 0.5s 0.3s;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        .char-card.active .char-info {
+            opacity: 1;
+            transform: translateX(0);
+        }
+
+        .char-name-title { 
+            font-size: 3.0rem; 
+            font-weight: 100; 
+            letter-spacing: 15px; 
+            color: #fffde7; 
+            margin-bottom: 15px;
+            text-shadow: 0 0 15px rgba(255, 253, 231, 0.5);
+        }
+        .char-desc {
+            font-size: 1.1rem;
+            color: #ccc;
+            line-height: 1.7;
+            letter-spacing: 2px;
+            font-family: serif;
+        }
+
+        .back-home { position: fixed; left: 40px; top: 40px; color: #a29bfe; text-decoration: none; font-size: 1.1rem; z-index: 200; }
+    </style>
+</head>
+<body>
+
+    <div class="stars-container" id="stars"></div>
+    <a href="index.html" class="back-home">← 返回星盤</a>
+
+    <div class="char-wrapper" id="char-wrapper"></div>
+
+    <script>
+        // 背景粒子
+        const starsContainer = document.getElementById('stars');
+        for (let i = 0; i < 100; i++) {
+            const star = document.createElement('div');
+            star.className = 'star';
+            star.style.top = Math.random() * 100 + '%';
+            star.style.width = star.style.height = Math.random() * 2 + 1 + 'px';
+            const duration = Math.random() * 25 + 20;
+            star.style.setProperty('--duration', duration + 's');
+            star.style.animationDelay = -Math.random() * duration + 's';
+            starsContainer.appendChild(star);
+        }
+
+        // 角色資料：完整 14 顆主星
+const characters = [
+    { name: "紫微", img: "chara/紫微.png", desc: "帝座之星，代表領導力與高貴。紫微星坐命者，通常具有威嚴感與責任心，在群體中往往扮演引領者的角色，但也常伴隨著「高處不勝寒」的孤獨感。" },
+    { name: "天機", img: "chara/天機.png", desc: "智多星，象徵智慧、變動與邏輯。天機者心思細膩、反應敏捷，擅長策劃與分析，但也容易因為思慮過多而產生精神上的焦慮與壓力。" },
+    { name: "太陽", img: "chara/太陽.png", desc: "光明之星，代表博愛、事業與父親。太陽星如烈日般普照眾生，熱情、大方且不計較，但若落陷則可能顯得勞碌或流於虛榮。" },
+    { name: "武曲", img: "chara/武曲.png", desc: "財帛之星，剛毅、果決且務實。武曲具有開創的精神與極強的執行力，是典型的行動派，但在情感表達上較為生硬、不擅修飾。" },
+    { name: "天同", img: "chara/天同.png", desc: "福德之星，象徵和諧、享樂與純真。天同者待人親切，追求精神生活的安逸，但也可能因此顯得缺乏進取心，容易隨遇而安。" },
+    { name: "廉貞", img: "chara/廉貞.png", desc: "囚星，代表精密、外交與情感。廉貞星性格複雜，具有極強的觀察力與政治手腕，在公關事務上遊刃有餘，內心卻常在理智與情感間掙扎。" },
+    { name: "天府", img: "chara/天府.png", desc: "令星，代表財庫、保守與穩重。天府星如同一國之君，擅長守成與管理資源，生活品味高雅且性格溫厚，但也可能顯得過於安於現狀，缺乏變革動力。" },
+    { name: "太陰", img: "chara/太陰.png", desc: "潔淨之星，代表財富、母性與浪漫。太陰如明月般溫柔、含蓄，情感豐富且具有高度的審美觀，偏好幽靜的生活環境，內心戲較多。" },
+    { name: "貪狼", img: "chara/貪狼.png", desc: "慾望之星，象徵才藝、交際與機會。貪狼是多才多藝的現實主義者，對新鮮事物充滿好奇，在社交場合光芒四射，但慾望較強，生活容易起伏不定。" },
+    { name: "巨門", img: "chara/巨門.png", desc: "暗星，象徵口才、研究與猜疑。巨門具有極佳的洞察力與辯才，適合從事研究或法律工作，但性格較為敏感，常因心直口快而引發是非糾紛。" },
+    { name: "天相", img: "chara/天相.png", desc: "印星，代表服務、平衡與誠信。天相星是天生的輔佐人才，注重衣食享受與外在儀表，待人客氣、處事公正，但有時會顯得缺乏主見。" },
+    { name: "天梁", img: "chara/天梁.png", desc: "蔭星，象徵長壽、宗教與傳統。天梁具有長者之風，愛護後輩且樂於助人，常能在危難中逢凶化吉，但也可能因過於堅持原則而顯得囉嗦。" },
+    { name: "七殺", img: "chara/七殺.png", desc: "將星，代表權威、肅殺與獨立。七殺星性格剛烈，不畏艱難且極具開創性，是天生的開路先鋒，但內心孤傲，一生常面臨巨大的轉折與挑戰。" },
+    { name: "破軍", img: "chara/破軍.png", desc: "耗星，象徵破壞、創新與衝動。破軍不滿足於現狀，敢於推翻舊有傳統以建立新秩序，性格求新求變，但也容易因為衝動而付出沉重代價。" }
+];
+
+        const wrapper = document.getElementById('char-wrapper');
+        characters.forEach((char, index) => {
+            const card = document.createElement('div');
+            card.className = 'char-card';
+            card.innerHTML = `
+                <div class="skew-fix">
+                    <div class="img-box">
+                        <img src="${char.img}" class="char-img">
+                        <div class="char-name-box">
+                            <span class="hover-name">${char.name}</span>
+                        </div>
+                    </div>
+                    <div class="char-info">
+                        <h2 class="char-name-title">${char.name}</h2>
+                        <p class="char-desc">${char.desc}</p>
+                    </div>
+                </div>
+            `;
+
+            card.onclick = (e) => {
+                const isActive = card.classList.contains('active');
+                document.querySelectorAll('.char-card').forEach(c => c.classList.remove('active'));
+                if (!isActive) {
+                    card.classList.add('active');
+                    setTimeout(() => {
+                        targetScroll = card.offsetLeft - (window.innerWidth / 2) + (850 / 2);
+                    }, 100);
+                }
+            };
+
+            wrapper.appendChild(card);
+        });
+
+        // 慣性捲動系統
+        let targetScroll = 0;
+        let currentScroll = 0;
+        const lerpFactor = 0.08;
+
+        window.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            targetScroll += e.deltaY * 1.5;
+            const maxScroll = wrapper.scrollWidth - window.innerWidth;
+            targetScroll = Math.max(0, Math.min(targetScroll, maxScroll));
+        }, { passive: false });
+
+        function smoothScroll() {
+            currentScroll += (targetScroll - currentScroll) * lerpFactor;
+            wrapper.scrollLeft = currentScroll;
+            requestAnimationFrame(smoothScroll);
+        }
+        smoothScroll();
+    </script>
+</body>
+</html>

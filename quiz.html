@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>星命測驗</title>
+    <style>
+        /* --- 基礎樣式 (繼承故事模式的沉浸感) --- */
+        body { 
+            margin: 0; 
+            background: #050510; 
+            color: #ddd; 
+            font-family: serif; 
+            line-height: 1.8; 
+            overflow-x: hidden; 
+            min-height: 100vh; 
+        }
+
+        /* 保留原本的動態背景：星塵與軌道 */
+        .stars-container, .orbit-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
+        .star { position: absolute; background: white; border-radius: 50%; opacity: 0; animation: flowing-right var(--duration) linear infinite; }
+        @keyframes flowing-right { 0% { transform: translateX(0); opacity: 0; } 10% { opacity: 0.5; } 100% { transform: translateX(110vw); opacity: 0; } }
+        .orbit { position: absolute; top: 50%; left: 50%; border: 1px solid rgba(162, 155, 254, 0.2); border-radius: 50%; border-right-color: transparent !important; animation: rotate var(--speed) linear infinite; }
+        @keyframes rotate { from { transform: translate(-50%, -50%) rotate(0deg); } to { transform: translate(-50%, -50%) rotate(360deg); } }
+
+        /* 測驗容器 */
+        .container { 
+            max-width: 800px; 
+            margin: 100px auto; 
+            padding: 40px; 
+            background: rgba(10, 10, 10, 0.8); 
+            backdrop-filter: blur(20px); 
+            border-radius: 24px; 
+            border: 1px solid rgba(162, 155, 254, 0.15); 
+            position: relative; 
+            z-index: 10; 
+        }
+
+        /* 題目插圖區 (保留前景圖片，僅移除背景模糊圖) */
+        .quiz-img-box { 
+            width: 100%; 
+            aspect-ratio: 16 / 9; 
+            background: #1a1a1a; 
+            margin: 0 0 35px 0; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            border-radius: 12px; 
+            overflow: hidden; 
+            border: 1px solid rgba(162, 155, 254, 0.2);
+        }
+        .quiz-img-box img { 
+            width: 100%; height: 100%; 
+            object-fit: contain; 
+            transition: opacity 0.5s ease-in-out; 
+        }
+
+        .question-text { 
+            font-size: 1.4rem; 
+            margin-bottom: 40px; 
+            text-align: center; 
+            letter-spacing: 3px;
+            color: #fffde7;
+            text-shadow: 0 0 10px rgba(162, 155, 254, 0.5);
+        }
+
+        /* 選項按鈕 */
+        .options-grid { display: grid; gap: 18px; }
+        .option-btn { 
+            background: rgba(255, 255, 255, 0.05); 
+            border: 1px solid rgba(255, 253, 231, 0.2); 
+            color: #ccc; 
+            padding: 20px; 
+            border-radius: 15px; 
+            cursor: pointer; 
+            font-family: serif; 
+            font-size: 1.1rem; 
+            transition: 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
+            text-align: left; 
+        }
+        .option-btn:hover { 
+            color: #fffde7; 
+            border-color: #fffde7; 
+            text-shadow: 0 0 10px #fff9c4; 
+            background: rgba(255, 253, 231, 0.1); 
+            transform: translateX(12px); 
+        }
+
+        .fade-out { opacity: 0 !important; }
+
+        .back-home { position: fixed; left: 30px; top: 30px; color: #a29bfe; text-decoration: none; font-size: 1.1rem; z-index: 100; transition: 0.3s; }
+        .back-home:hover { text-shadow: 0 0 10px #fff; }
+
+        .progress-bar {
+            width: 100%; height: 3px;
+            background: rgba(255, 255, 255, 0.1);
+            margin-bottom: 30px;
+            border-radius: 2px;
+            overflow: hidden;
+        }
+        .progress-fill { width: 0%; height: 100%; background: #a29bfe; transition: width 0.5s ease; }
+
+        /* 結果顯示樣式 */
+        .result-star-name { font-size: 3rem; color: #fffde7; letter-spacing: 15px; margin: 20px 0; }
+        .result-desc { color: #aaa; line-height: 2; text-align: left; margin-top: 20px; }
+    </style>
+</head>
+<body>
+
+    <div class="stars-container" id="stars"></div>
+    <div class="orbit-container" id="orbit-field"></div>
+    <a href="index.html" class="back-home">← 返回星盤</a>
+
+    <div class="container">
+        <div class="progress-bar"><div class="progress-fill" id="progress"></div></div>
+        
+        <div id="quiz-view">
+            <div class="quiz-img-box">
+                <img id="question-img" src="" alt="">
+            </div>
+            <div class="question-text" id="question-display"></div>
+            <div class="options-grid" id="options-container"></div>
+        </div>
+
+        <div id="result-view" style="display: none; text-align: center;">
+            <p style="color: #a29bfe; letter-spacing: 5px;">測驗結果：你的守護星曜是</p>
+            <h1 id="result-star" class="result-star-name"></h1>
+            <div class="result-desc" id="result-desc"></div>
+            <button class="option-btn" onclick="location.reload()" style="text-align: center; margin-top: 50px; display: inline-block;">重啟星盤</button>
+        </div>
+    </div>
+
+    <script>
+        function initBg() {
+            const sc = document.getElementById('stars');
+            for(let i=0; i<80; i++){
+                let s = document.createElement('div');
+                s.className = 'star';
+                s.style.top = Math.random()*100+'%';
+                s.style.width = s.style.height = Math.random()*3+'px';
+                s.style.left = -20+'px';
+                s.style.setProperty('--duration', (Math.random()*20+15)+'s');
+                s.style.animationDelay = -Math.random()*20+'s';
+                sc.appendChild(s);
+            }
+            const obf = document.getElementById('orbit-field');
+            for(let i=0; i<6; i++){
+                let o = document.createElement('div');
+                o.className = 'orbit';
+                let size = 400 + i*250;
+                o.style.width = o.style.height = size+'px';
+                o.style.setProperty('--speed', (30+i*15)+'s');
+                obf.appendChild(o);
+            }
+        }
+
+        // --- 核心更新 1: 帶有計分邏輯的題庫 ---
+        const quizData = [
+            {
+                title: "深夜裡，你發現指尖有一簇微弱的星光在躍動，你的直覺是？",
+                image: "images/quiz1.jpg",
+                options: [
+                    { text: "這是一份責任，我必須弄清楚它的意義", scores: ["紫微", "天府", "武曲"] },
+                    { text: "這是一個徵兆，未來的變動即將發生", scores: ["天機", "破軍", "七殺"] },
+                    { text: "這是一份禮物，我想感受它溫暖的力量", scores: ["天同", "太陰", "太陽"] }
+                ]
+            },
+            {
+                title: "如果能擁有一種星曜天賦，你希望是？",
+                image: "images/quiz2.jpg",
+                options: [
+                    { text: "看穿一切謊言與真實的雙眼", scores: ["巨門", "天機", "廉貞"] },
+                    { text: "守護身邊所有人的堅實護盾", scores: ["天相", "天梁", "天府"] },
+                    { text: "燃燒自己照亮黑暗的勇氣", scores: ["太陽", "七殺", "貪狼"] }
+                ]
+            }
+        ];
+
+        // 14 主星結果描述
+        const starResults = {
+            "紫微": "你是天生的領導者，具備尊貴的氣息與包容力。",
+            "天機": "智慧是你的羽翼，你擅長策劃與觀察變動。",
+            "太陽": "你如陽光般溫暖，熱衷於公益並照亮他人。",
+            "武曲": "剛毅果決是你的特質，你是天生的行動派與財星。",
+            "天同": "和諧與純真伴你左右，你是福德與安逸的象徵。",
+            "廉貞": "心思縝密且具備外交手腕，你是精準的執行者。",
+            "天府": "穩重、保守且具備領導力，你是可靠的財庫守護者。",
+            "太陰": "浪漫細膩且具備母性光輝，你擁有極佳的審美觀。",
+            "貪狼": "慾望與才藝共存，你是社交場合中最耀眼的存在。",
+            "巨門": "冷靜觀察、辯才無礙，你是真理的追尋者。",
+            "天相": "公正且誠信，你擅長平衡各方利益並服務大眾。",
+            "天梁": "慈悲且具備長者之風，你是逢凶化吉的福星。",
+            "七殺": "獨立自主且具備大將之風，你勇於開創與戰鬥。",
+            "破軍": "敢於推翻舊秩序並大膽創新，你是變革的推手。"
+        };
+
+        // --- 核心更新 2: 計分系統變數 ---
+        let currentIdx = 0;
+        let finalScores = {}; // 存放各主星的分數
+
+        function updateQuiz() {
+            const q = quizData[currentIdx];
+            if(!q) return;
+
+            document.getElementById('question-img').src = q.image;
+            document.getElementById('question-display').innerText = q.title;
+            
+            // 進度條
+            const progress = ((currentIdx + 1) / quizData.length) * 100;
+            document.getElementById('progress').style.width = progress + '%';
+
+            const container = document.getElementById('options-container');
+            container.innerHTML = '';
+            q.options.forEach(opt => {
+                const btn = document.createElement('button');
+                btn.className = 'option-btn';
+                btn.innerText = opt.text;
+                btn.onclick = () => handleOptionClick(opt.scores);
+                container.appendChild(btn);
+            });
+        }
+
+        function handleOptionClick(scores) {
+            // 累計分數
+            scores.forEach(star => {
+                finalScores[star] = (finalScores[star] || 0) + 1;
+            });
+
+            currentIdx++;
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+
+            if (currentIdx >= quizData.length) {
+                showResult();
+            } else {
+                const imgEl = document.getElementById('question-img');
+                imgEl.classList.add('fade-out');
+                setTimeout(() => {
+                    updateQuiz();
+                    setTimeout(() => imgEl.classList.remove('fade-out'), 50);
+                }, 500);
+            }
+        }
+
+        // --- 核心更新 3: 計算並顯示最高分結果 ---
+        function showResult() {
+            document.getElementById('quiz-view').style.display = 'none';
+            document.getElementById('result-view').style.display = 'block';
+
+            // 找出得分最高的星曜
+            let maxStar = "紫微"; // 預設值
+            let maxScore = -1;
+            for (const [star, score] of Object.entries(finalScores)) {
+                if (score > maxScore) {
+                    maxScore = score;
+                    maxStar = star;
+                }
+            }
+
+            document.getElementById('result-star').innerText = maxStar;
+            document.getElementById('result-desc').innerText = starResults[maxStar];
+        }
+
+        window.onload = () => { initBg(); updateQuiz(); };
+    </script>
+</body>
+</html>
